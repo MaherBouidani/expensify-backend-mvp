@@ -44,5 +44,36 @@ app.get("/contracts", getProfile, async (req, res) => {
   res.json(listOfContracts);
 });
 
+app.get("/jobs/unpaid", getProfile, async (req, res) => {
+  const { Contract, Job } = req.app.get("models");
+  const { profile } = req;
+
+  try {
+    const unpaidJobs = await Job.findAll({
+      include: [
+        {
+          model: Contract,
+          where: {
+            status: "in_progress",
+            [Op.or]: [{ contractorId: profile.id }, { clientId: profile.id }],
+          },
+        },
+      ],
+      where: {
+        paid: null,
+      },
+    });
+
+    if (unpaidJobs.length === 0) {
+      return res.status(404).end();
+    }
+
+    res.json(unpaidJobs);
+  } catch (error) {
+    console.error("Error retrieving unpaid jobs:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 module.exports = app;
