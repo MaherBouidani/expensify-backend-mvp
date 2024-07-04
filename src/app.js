@@ -39,7 +39,7 @@ app.get("/contracts", getProfile, async (req, res) => {
       ],
     },
   });
-  console.log(listOfContracts);
+
   if (listOfContracts.length == 0) return res.status(404).end();
   res.json(listOfContracts);
 });
@@ -138,5 +138,65 @@ app.post("/jobs/:job_id/pay", getProfile, async (req, res) => {
   }
 });
 
+
+app.post("/balances/deposit/:userId", async (req, res) => {
+  const { Profile, Job } = req.app.get("models");
+  const { userId } = req.params;
+  const { amount } = req.body;
+  const t = await sequelize.transaction();
+
+  try {
+    const transactionOptions = { transaction: t, lock: t.LOCK.UPDATE };
+
+    const profile = await Profile.findOne({
+      where: { id: userId },
+      ...transactionOptions,
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    if (profile.type != "client") {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized, Profile is not of client type" });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const totalJobsToPay = await Job.sum("price", {
+      where: { paid: null },
+      include: {
+        model: Contract,
+        where: { clientId: profile.id },
+      },
+      ...transactionOptions,
+    });
+
+    const maxDeposit = totalJobsToPay * 0.25;
+
+    if (maxDeposit < amount) {
+      return res
+        .status(400)
+        .json({
+          error: `Deposit amount exceeds the allowable limit of ${maxDeposit}`,
+        });
+    }
+
+    profile.balance += amount;
+    await profile.save(transactionOptions);
+
+    await t.commit();
+    const result = await profile.reload();
+    res.status(201).json({ message: result });
+  } catch (error) {
+    await t.rollback();
+    console.error("Error depositing funds:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 module.exports = app;
