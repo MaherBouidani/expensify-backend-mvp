@@ -1,14 +1,13 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+const express = require("express");
+const bodyParser = require("body-parser");
 const { sequelize, Contract } = require("./model");
-const { Op } = require("sequelize");
-const {getProfile} = require('./middleware/getProfile')
+const { Op, col, fn } = require("sequelize");
+const { getProfile } = require("./middleware/getProfile");
+const { LIMIT_ATTACHED } = require("sqlite3");
 const app = express();
 app.use(bodyParser.json());
-app.set('sequelize', sequelize)
-app.set('models', sequelize.models)
-
-
+app.set("sequelize", sequelize);
+app.set("models", sequelize.models);
 
 /**
  * FIX ME!
@@ -82,40 +81,52 @@ app.post("/jobs/:job_id/pay", getProfile, async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-    const transactionOptions = {transaction: t, lock: t.LOCK.UPDATE};
+    const transactionOptions = { transaction: t, lock: t.LOCK.UPDATE };
 
     // const balance = profile.balance;
     const job = await Job.findOne({
       where: {
-        id: job_id
-      }, include: [Contract], ...transactionOptions
+        id: job_id,
+      },
+      include: [Contract],
+      ...transactionOptions,
     });
 
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
     }
 
-    if (profile.type != "client"){
-        return res.status(403).json({ error: "Unauthorized, Profile is not of client type" });
-    } 
-
-    if (profile.id !== job.Contract.ClientId){
-        return res.status(403).json({ error: "Unauthorized, Job does not belong to profile" });
+    if (profile.type != "client") {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized, Profile is not of client type" });
     }
 
-    if (job.paid) { 
-        return res.status(400).json({ error: "Job already paid" });
+    if (profile.id !== job.Contract.ClientId) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized, Job does not belong to profile" });
     }
 
-    const client = await Profile.findOne({where: {id: job.Contract.ClientId}, ...transactionOptions});
-    const contractor = await Profile.findOne({where: {id: job.Contract.ContractorId}, ...transactionOptions});
+    if (job.paid) {
+      return res.status(400).json({ error: "Job already paid" });
+    }
 
-    if (!client || !contractor){
-        return res.status(404).json({ error: "Profile not found" });
+    const client = await Profile.findOne({
+      where: { id: job.Contract.ClientId },
+      ...transactionOptions,
+    });
+    const contractor = await Profile.findOne({
+      where: { id: job.Contract.ContractorId },
+      ...transactionOptions,
+    });
+
+    if (!client || !contractor) {
+      return res.status(404).json({ error: "Profile not found" });
     }
 
     if (client.balance < job.price) {
-        return res.status(400).json({ error: "Insufficient funds" });
+      return res.status(400).json({ error: "Insufficient funds" });
     }
 
     client.balance -= job.price;
@@ -129,15 +140,13 @@ app.post("/jobs/:job_id/pay", getProfile, async (req, res) => {
     await job.save(transactionOptions);
 
     await t.commit();
-    res.json({ message: 'Job paid successfully' });
-
+    res.json({ message: "Job paid successfully" });
   } catch (error) {
     await t.rollback();
     console.error("Error paying job:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 app.post("/balances/deposit/:userId", async (req, res) => {
   const { Profile, Job } = req.app.get("models");
@@ -179,11 +188,9 @@ app.post("/balances/deposit/:userId", async (req, res) => {
     const maxDeposit = totalJobsToPay * 0.25;
 
     if (maxDeposit < amount) {
-      return res
-        .status(400)
-        .json({
-          error: `Deposit amount exceeds the allowable limit of ${maxDeposit}`,
-        });
+      return res.status(400).json({
+        error: `Deposit amount exceeds the allowable limit of ${maxDeposit}`,
+      });
     }
 
     profile.balance += amount;
@@ -195,6 +202,106 @@ app.post("/balances/deposit/:userId", async (req, res) => {
   } catch (error) {
     await t.rollback();
     console.error("Error depositing funds:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/admin/best-profession", async (req, res) => {
+  console.log("here");
+  const { Profile, Job, Contract } = req.app.get("models");
+  const { start, end } = req.query;
+  const startTime = new Date(start);
+  const endTime = new Date(end);
+  console.log(startTime, ".........", endTime);
+
+  try {
+    const bestProfession = await Profile.findAll({
+      attributes: [
+        "profession",
+        [sequelize.fn("SUM", col("Contractor.Jobs.price")), "total"],
+      ],
+      group: ["profession"],
+      where: { type: "contractor" },
+      include: [
+        {
+          model: Contract,
+          attributes: [],
+          as: "Contractor",
+          include: [
+            {
+              model: Job,
+              attributes: [],
+              as: "Jobs",
+              where: {
+                paid: true,
+                paymentDate: { [Op.between]: [startTime, endTime] },
+              },
+            },
+          ],
+        },
+      ],
+      having: sequelize.literal(`total > 0`),
+      order: [["total", "DESC"]],
+    });
+
+    console.log("bestProfessions", bestProfession);
+
+    if (bestProfession.length == 0) {
+      return res.status(404).json({ error: "No results found" });
+    }
+
+    res.status(200).json(bestProfession);
+  } catch (error) {
+    console.error("Error retrieving best profession:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/admin/best-clients", async (req, res) => {
+  const { Profile, Job, Contract } = req.app.get("models");
+  const { start, end } = req.query;
+  const startTime = new Date(start);
+  const endTime = new Date(end);
+
+  try {
+    const bestClients = await Profile.findAll({
+      attributes: [
+        "id",
+        "firstName",
+        "lastName",
+        [sequelize.fn("SUM", col("Client.Jobs.price")), "total"],
+      ],
+      group: ["Profile.id"],
+      where: { type: "client" },
+      include: [
+        {
+          model: Contract,
+          attributes: [],
+          as: "Client",
+          include: [
+            {
+              model: Job,
+              attributes: [],
+              as: "Jobs",
+              where: {
+                paid: true,
+                paymentDate: { [Op.between]: [startTime, endTime] },
+              },
+            },
+          ],
+        },
+      ],
+      having: sequelize.literal(`total > 0`),
+      order: [[sequelize.literal("total"), "DESC"]],
+    });
+
+    if (bestClients.length == 0) {
+      return res.status(404).json({ error: "No results found" });
+    }
+
+    res.status(200).json(bestClients);
+  } catch (error) {
+    console.error("Error retrieving best clients:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
