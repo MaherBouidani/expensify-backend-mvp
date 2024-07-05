@@ -265,6 +265,7 @@ app.get("/admin/best-clients", async (req, res) => {
 
   try {
     const bestClients = await Profile.findAll({
+      subQuery: false,
       attributes: [
         "id",
         "firstName",
@@ -293,6 +294,7 @@ app.get("/admin/best-clients", async (req, res) => {
       ],
       having: sequelize.literal(`total > 0`),
       order: [[sequelize.literal("total"), "DESC"]],
+      limit: 2,
     });
 
     if (bestClients.length == 0) {
