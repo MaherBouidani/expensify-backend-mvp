@@ -3,9 +3,9 @@ const { Contract } = require("../models/associations");
 const { ContractStatuses } = require("../constants/contractStatuses");
 const sequelize = require("../database");
 const { profileTypes } = require("../constants/profileTypes");
+const { Op } = require("sequelize");
 
 const getUnpaidJobsByProfile = async (profileId) => {
-  const { Contract, Job } = req.app.get("models");
   try {
     const unpaidJobs = await Job.findAll({
       include: [
@@ -33,7 +33,6 @@ const getUnpaidJobsByProfile = async (profileId) => {
 };
 
 const pay = async (job_id, profile) => {
-  const { Job, Profile } = req.app.get("models");
   const t = await sequelize.transaction();
   try {
     const transactionOptions = { transaction: t, lock: t.LOCK.UPDATE };

@@ -1,5 +1,6 @@
 const Contract = require("../models/Contract");
 const { ContractStatuses } = require("../constants/contractStatuses");
+const { Op } = require("sequelize");
 
 const getContractById = async (contractId, profileId) => {
   const contract = await Contract.findOne({

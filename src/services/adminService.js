@@ -1,10 +1,11 @@
+const { Profile } = require("../models/associations");
 const { Job } = require("../models/associations");
 const { Contract } = require("../models/associations");
 const sequelize = require("../database");
 const { profileTypes } = require("../constants/profileTypes");
+const { Op, col, fn } = require("sequelize");
 
 const queryBestProfession = async (startTime, endTime) => {
-  const { Profile, Job, Contract } = req.app.get("models");
   try {
     const bestProfession = await Profile.findAll({
       attributes: [
@@ -46,7 +47,6 @@ const queryBestProfession = async (startTime, endTime) => {
 };
 
 const queryBestClients = async (startTime, endTime) => {
-  const { Profile, Job, Contract } = req.app.get("models");
   try {
     const bestClients = await Profile.findAll({
       subQuery: false,

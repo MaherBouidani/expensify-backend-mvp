@@ -6,7 +6,7 @@ const {
   getNonTerminatedContracts,
 } = require("../controllers/contractControllers");
 
-router.get("/contracts/:id", getProfile, getContract);
-router.get("/contracts", getProfile, getNonTerminatedContracts);
+router.get("/:id", getProfile, getContract);
+router.get("/", getProfile, getNonTerminatedContracts);
 
 module.exports = router;

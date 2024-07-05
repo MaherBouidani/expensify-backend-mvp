@@ -9,4 +9,6 @@ Contract.belongsTo(Profile, { as: "Client" });
 Contract.hasMany(Job);
 Job.belongsTo(Contract);
 
-module.exports = { Profile, Contract, Job };
+const models = { Profile, Contract, Job };
+
+module.exports = models;
