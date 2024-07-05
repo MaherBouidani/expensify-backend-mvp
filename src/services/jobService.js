@@ -1,5 +1,6 @@
 const { Job } = require("../models/associations");
 const { Contract } = require("../models/associations");
+const { Profile } = require("../models/associations");
 const { ContractStatuses } = require("../constants/contractStatuses");
 const sequelize = require("../database");
 const { profileTypes } = require("../constants/profileTypes");

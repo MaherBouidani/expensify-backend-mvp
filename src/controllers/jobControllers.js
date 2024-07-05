@@ -1,4 +1,4 @@
-const { getUnpaidJobsByProfile, pay } = require('../services/jobService');
+const { getUnpaidJobsByProfile, pay } = require("../services/jobService");
 
 const getUnpaidJobs = async (req, res) => {
   const { profile } = req;
@@ -12,11 +12,9 @@ const payForJob = async (req, res) => {
   const { profile } = req;
   const { job_id } = req.params;
 
-
   const { status, response } = await pay(job_id, profile);
 
   res.status(status).json(response);
 };
-
 
 module.exports = { getUnpaidJobs, payForJob };

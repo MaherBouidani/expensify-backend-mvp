@@ -5,7 +5,7 @@ const { Op } = require("sequelize");
 const getContractById = async (contractId, profileId) => {
   const contract = await Contract.findOne({
     where: {
-      contractId,
+      id: contractId,
       [Op.or]: [{ clientId: profileId }, { contractorId: profileId }],
     },
   });

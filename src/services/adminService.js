@@ -8,6 +8,7 @@ const { Op, col, fn } = require("sequelize");
 const queryBestProfession = async (startTime, endTime) => {
   try {
     const bestProfession = await Profile.findAll({
+      subQuery: false,
       attributes: [
         "profession",
         [sequelize.fn("SUM", col("Contractor.Jobs.price")), "total"],
@@ -34,6 +35,7 @@ const queryBestProfession = async (startTime, endTime) => {
       ],
       having: sequelize.literal(`total > 0`),
       order: [["total", "DESC"]],
+      limit: 1,
     });
 
     if (bestProfession.length == 0) {
