@@ -20,7 +20,7 @@ const getContractsByProfile = async (profileId) => {
   const listOfContracts = await Contract.findAll({
     where: {
       [Op.and]: [
-        { [Op.or]: [{ clientId: profile.id }, { contractorId: profile.id }] },
+        { [Op.or]: [{ clientId: profileId }, { contractorId: profileId }] },
         { status: { [Op.ne]: ContractStatuses.TERMINATED } },
       ],
     },
