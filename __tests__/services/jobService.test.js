@@ -51,6 +51,10 @@ describe('pay', () => {
             LOCK: { UPDATE: 'update' }
         }));
     });
+    jest.mocked("../../src/models/associations", () => ({
+      data: jest.fn(),
+      encapsualte: True,
+    }));
 
     it('should return 404 if job not found', async () => {
         Job.findOne.mockResolvedValue(null);

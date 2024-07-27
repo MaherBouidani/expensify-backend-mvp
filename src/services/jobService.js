@@ -34,7 +34,9 @@ const getUnpaidJobsByProfile = async (profileId) => {
 };
 
 const pay = async (job_id, profile) => {
-  const t = await sequelize.transaction();
+  const t = await sequelize.transaction({
+    transactionType: 'IMMEDIATE',
+  });
   try {
     const transactionOptions = { transaction: t, lock: t.LOCK.UPDATE };
 
